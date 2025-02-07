@@ -43,6 +43,7 @@ body {
 
 .file-item {
   display: flex;
+  justify-content: space-between;
   align-items: center;
   padding: 0.5rem;
   cursor: pointer;
@@ -64,6 +65,62 @@ body {
 
 .file .icon {
   color: #ffffff;
+}
+
+.file-item-content {
+  display: flex;
+  align-items: center;
+  flex-grow: 1;
+}
+
+.file-actions {
+  display: flex;
+  gap: 0.5rem;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.file-item:hover .file-actions {
+  opacity: 1;
+}
+
+.action-button {
+  background: none;
+  border: none;
+  color: #666;
+  cursor: pointer;
+  padding: 0.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+}
+
+.action-button:hover {
+  background: #2a2a2a;
+  color: #fff;
+}
+
+.action-button.confirm {
+  color: #4caf50;
+}
+
+.action-button.cancel {
+  color: #f44336;
+}
+
+.file-item input {
+  background: #2a2a2a;
+  border: 1px solid #444;
+  color: #fff;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  margin-left: 0.5rem;
+}
+
+.file-item input:focus {
+  outline: none;
+  border-color: #666;
 }
 
 .upload-zone {

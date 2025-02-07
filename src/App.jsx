@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ListObjectsV2Command, S3Client } from '@aws-sdk/client-s3';
+import { ListObjectsV2Command, S3Client, CopyObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
 import FileList from './components/FileList';
 import UploadZone from './components/UploadZone';
 
@@ -59,6 +59,31 @@ function App() {
     setCurrentPrefix(newPrefix === '/' ? '' : newPrefix);
   };
 
+  const handleRename = async (oldKey, newKey) => {
+    try {
+      // Copy the object to the new key
+      const copyCommand = new CopyObjectCommand({
+        Bucket: import.meta.env.VITE_AWS_BUCKET_NAME,
+        CopySource: `${import.meta.env.VITE_AWS_BUCKET_NAME}/${oldKey}`,
+        Key: newKey
+      });
+      await s3Client.send(copyCommand);
+
+      // Delete the old object
+      const deleteCommand = new DeleteObjectCommand({
+        Bucket: import.meta.env.VITE_AWS_BUCKET_NAME,
+        Key: oldKey
+      });
+      await s3Client.send(deleteCommand);
+
+      // Refresh the file list
+      fetchObjects(currentPrefix);
+    } catch (error) {
+      console.error('Error renaming file:', error);
+      throw error;
+    }
+  };
+
   return (
     <div className="container">
       <h1>S3 File Browser</h1>
@@ -77,6 +102,7 @@ function App() {
           objects={objects}
           onFolderClick={handleFolderClick}
           currentPrefix={currentPrefix}
+          onRename={handleRename}
         />
       )}
       <UploadZone
