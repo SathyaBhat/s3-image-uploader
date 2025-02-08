@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useState, useEffect } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
 import imageCompression from 'browser-image-compression';
@@ -88,12 +88,58 @@ const uploadToS3 = async (file, currentPrefix, onProgress) => {
 
 function UploadZone({ currentPrefix, onUploadComplete }) {
   const [uploads, setUploads] = useState(new Map());
+  const [isDragging, setIsDragging] = useState(false);
+
+  // Add global drag event handlers
+  useEffect(() => {
+    const handleDragOver = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+    };
+
+    const handleDragEnter = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (e.dataTransfer.types.includes('Files')) {
+        setIsDragging(true);
+      }
+    };
+
+    const handleDragLeave = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      // Only set dragging to false if we're leaving the window
+      if (e.clientX <= 0 || e.clientX >= window.innerWidth ||
+        e.clientY <= 0 || e.clientY >= window.innerHeight) {
+        setIsDragging(false);
+      }
+    };
+
+    const handleDrop = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      setIsDragging(false);
+    };
+
+    window.addEventListener('dragover', handleDragOver);
+    window.addEventListener('dragenter', handleDragEnter);
+    window.addEventListener('dragleave', handleDragLeave);
+    window.addEventListener('drop', handleDrop);
+
+    return () => {
+      window.removeEventListener('dragover', handleDragOver);
+      window.removeEventListener('dragenter', handleDragEnter);
+      window.removeEventListener('dragleave', handleDragLeave);
+      window.removeEventListener('drop', handleDrop);
+    };
+  }, []);
 
   const updateProgress = (file, progress) => {
     setUploads(prev => new Map(prev).set(file.name, progress));
   };
 
-  const onDrop = useCallback(async (acceptedFiles) => {
+  const handleDrop = useCallback(async (acceptedFiles) => {
+    setIsDragging(false);
     // Initialize progress for each file
     setUploads(new Map(acceptedFiles.map(file => [file.name, 0])));
 
@@ -121,36 +167,41 @@ function UploadZone({ currentPrefix, onUploadComplete }) {
     }
   }, [currentPrefix, onUploadComplete]);
 
-  const { getRootProps, getInputProps, isDragActive } = useDropzone({
-    onDrop,
+  const { getRootProps, getInputProps } = useDropzone({
+    onDrop: handleDrop,
     accept: {
       'image/*': ['.jpeg', '.jpg', '.png', '.gif'],
-    }
+    },
+    noClick: true,
   });
 
   return (
-    <div className="upload-container">
-      <div {...getRootProps()} className="upload-zone">
+    <>
+      <div
+        {...getRootProps()}
+        className={`upload-zone ${isDragging ? 'active' : ''}`}
+      >
         <input {...getInputProps()} />
-        {isDragActive ? (
-          <p>Drop the files here...</p>
-        ) : (
-          <p>Drag 'n' drop files here, or click to select files</p>
+        {isDragging && (
+          <div className="upload-overlay">
+            <p>Drop files here to upload</p>
+          </div>
         )}
       </div>
-
       {uploads.size > 0 && (
-        <div className="upload-progress-list">
-          {Array.from(uploads).map(([filename, progress]) => (
-            <UploadProgress
-              key={filename}
-              file={{ name: filename }}
-              progress={progress}
-            />
-          ))}
+        <div className="upload-progress-container">
+          <div className="upload-progress-list">
+            {Array.from(uploads).map(([filename, progress]) => (
+              <UploadProgress
+                key={filename}
+                file={{ name: filename }}
+                progress={progress}
+              />
+            ))}
+          </div>
         </div>
       )}
-    </div>
+    </>
   );
 }
 
