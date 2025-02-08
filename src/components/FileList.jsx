@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { FaFolder, FaFile, FaEdit, FaCheck, FaTimes } from 'react-icons/fa';
 
-function FileList({ objects, onFolderClick, currentPrefix, onRename }) {
+function FileList({ objects, onFolderClick, currentPrefix, onRename, onFileClick }) {
   const [editingId, setEditingId] = useState(null);
   const [editingName, setEditingName] = useState('');
 
@@ -59,7 +59,13 @@ function FileList({ objects, onFolderClick, currentPrefix, onRename }) {
           >
             <div
               className="file-item-content"
-              onClick={() => item.isFolder && onFolderClick(item.Prefix)}
+              onClick={() => {
+                if (item.isFolder) {
+                  onFolderClick(item.Prefix);
+                } else {
+                  onFileClick(item);
+                }
+              }}
               onDoubleClick={() => !item.isFolder && startEditing(item)}
             >
               {item.isFolder ? <FaFolder className="icon" /> : <FaFile className="icon" />}

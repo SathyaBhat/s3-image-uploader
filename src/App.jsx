@@ -15,6 +15,7 @@ function App() {
   const [currentPrefix, setCurrentPrefix] = useState('');
   const [objects, setObjects] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [selectedFile, setSelectedFile] = useState(null);
 
   const fetchObjects = async (prefix = '') => {
     try {
@@ -84,6 +85,15 @@ function App() {
     }
   };
 
+  const handleFileClick = (file) => {
+    if (!file.isFolder) {
+      setSelectedFile({
+        name: file.Key.slice(currentPrefix.length),
+        url: `https://i.sathyabh.at/${file.Key}`
+      });
+    }
+  };
+
   return (
     <div className="container">
       <h1>S3 File Browser</h1>
@@ -95,20 +105,46 @@ function App() {
       <div className="current-path">
         Current path: {currentPrefix || 'root'}
       </div>
-      {loading ? (
-        <div>Loading...</div>
-      ) : (
-        <FileList
-          objects={objects}
-          onFolderClick={handleFolderClick}
-          currentPrefix={currentPrefix}
-          onRename={handleRename}
-        />
-      )}
-      <UploadZone
-        currentPrefix={currentPrefix}
-        onUploadComplete={() => fetchObjects(currentPrefix)}
-      />
+
+      <div className="main-content">
+        <div className="content-left">
+          <UploadZone
+            currentPrefix={currentPrefix}
+            onUploadComplete={() => fetchObjects(currentPrefix)}
+          />
+
+          {loading ? (
+            <div>Loading...</div>
+          ) : (
+            <FileList
+              objects={objects}
+              onFolderClick={handleFolderClick}
+              currentPrefix={currentPrefix}
+              onRename={handleRename}
+              onFileClick={handleFileClick}
+            />
+          )}
+        </div>
+
+        {selectedFile && (
+          <div className="preview-pane">
+            <h3>{selectedFile.name}</h3>
+            <img
+              src={selectedFile.url}
+              alt={selectedFile.name}
+              className="preview-image"
+            />
+            <div className="preview-url">
+              <input
+                type="text"
+                value={selectedFile.url}
+                readOnly
+                onClick={e => e.target.select()}
+              />
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
