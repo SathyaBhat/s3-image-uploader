@@ -1,7 +1,0 @@
-{
-  "dependencies": {
-    "aws-sdk": "^2.1692.0",
-    "browser-image-compression": "^2.0.2",
-    "react-dropzone": "^14.3.5"
-  }
-}

@@ -1,8 +1,18 @@
-import React, { useState, useEffect } from 'react';
-import { ListObjectsV2Command, S3Client, CopyObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
-import FileList from './components/FileList';
-import UploadZone from './components/UploadZone';
-import { FaSortAmountDown, FaSortAmountUp, FaCopy, FaCheck } from 'react-icons/fa';
+import { useState, useEffect } from "react";
+import {
+  ListObjectsV2Command,
+  S3Client,
+  CopyObjectCommand,
+  DeleteObjectCommand,
+} from "@aws-sdk/client-s3";
+import FileList from "./components/FileList";
+import UploadZone from "./components/UploadZone";
+import {
+  FaSortAmountDown,
+  FaSortAmountUp,
+  FaCopy,
+  FaCheck,
+} from "react-icons/fa";
 
 const s3Client = new S3Client({
   region: import.meta.env.VITE_AWS_REGION,
@@ -13,40 +23,42 @@ const s3Client = new S3Client({
 });
 
 function App() {
-  const [currentPrefix, setCurrentPrefix] = useState('');
+  const [currentPrefix, setCurrentPrefix] = useState("");
   const [objects, setObjects] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedFile, setSelectedFile] = useState(null);
-  const [sortOrder, setSortOrder] = useState('desc');
+  const [sortOrder, setSortOrder] = useState("desc");
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(20);
   const [copiedField, setCopiedField] = useState(null);
 
-  const fetchObjects = async (prefix = '') => {
+  const fetchObjects = async (prefix = "") => {
     try {
       setLoading(true);
       const command = new ListObjectsV2Command({
         Bucket: import.meta.env.VITE_AWS_BUCKET_NAME,
         Prefix: prefix,
-        Delimiter: '/',
+        Delimiter: "/",
       });
 
       const response = await s3Client.send(command);
 
       // Combine CommonPrefixes (folders) and Contents (files)
-      const folders = (response.CommonPrefixes || []).map(prefix => ({
+      const folders = (response.CommonPrefixes || []).map((prefix) => ({
         ...prefix,
-        isFolder: true
+        isFolder: true,
       }));
 
-      const files = (response.Contents || []).filter(item => item.Key !== prefix).map(item => ({
-        ...item,
-        isFolder: false
-      }));
+      const files = (response.Contents || [])
+        .filter((item) => item.Key !== prefix)
+        .map((item) => ({
+          ...item,
+          isFolder: false,
+        }));
 
       setObjects([...folders, ...files]);
     } catch (error) {
-      console.error('Error fetching objects:', error);
+      console.error("Error fetching objects:", error);
     } finally {
       setLoading(false);
     }
@@ -62,8 +74,8 @@ function App() {
   };
 
   const handleBack = () => {
-    const newPrefix = currentPrefix.split('/').slice(0, -2).join('/') + '/';
-    setCurrentPrefix(newPrefix === '/' ? '' : newPrefix);
+    const newPrefix = currentPrefix.split("/").slice(0, -2).join("/") + "/";
+    setCurrentPrefix(newPrefix === "/" ? "" : newPrefix);
     setCurrentPage(1);
   };
 
@@ -73,21 +85,21 @@ function App() {
       const copyCommand = new CopyObjectCommand({
         Bucket: import.meta.env.VITE_AWS_BUCKET_NAME,
         CopySource: `${import.meta.env.VITE_AWS_BUCKET_NAME}/${oldKey}`,
-        Key: newKey
+        Key: newKey,
       });
       await s3Client.send(copyCommand);
 
       // Delete the old object
       const deleteCommand = new DeleteObjectCommand({
         Bucket: import.meta.env.VITE_AWS_BUCKET_NAME,
-        Key: oldKey
+        Key: oldKey,
       });
       await s3Client.send(deleteCommand);
 
       // Refresh the file list
       fetchObjects(currentPrefix);
     } catch (error) {
-      console.error('Error renaming file:', error);
+      console.error("Error renaming file:", error);
       throw error;
     }
   };
@@ -96,14 +108,14 @@ function App() {
     if (!file.isFolder) {
       setSelectedFile({
         name: file.Key.slice(currentPrefix.length),
-        url: `https://i.sathyabh.at/${file.Key}`
+        url: `https://i.sathyabh.at/${file.Key}`,
       });
     }
   };
 
   const sortedObjects = [...objects].sort((a, b) => {
     if (a.isFolder !== b.isFolder) return a.isFolder ? -1 : 1;
-    if (sortOrder === 'desc') {
+    if (sortOrder === "desc") {
       return new Date(b.LastModified) - new Date(a.LastModified);
     }
     return new Date(a.LastModified) - new Date(b.LastModified);
@@ -112,11 +124,11 @@ function App() {
   const totalPages = Math.ceil(sortedObjects.length / itemsPerPage);
   const paginatedObjects = sortedObjects.slice(
     (currentPage - 1) * itemsPerPage,
-    currentPage * itemsPerPage
+    currentPage * itemsPerPage,
   );
 
   const toggleSortOrder = () => {
-    setSortOrder(prev => prev === 'desc' ? 'asc' : 'desc');
+    setSortOrder((prev) => (prev === "desc" ? "asc" : "desc"));
   };
 
   const copyToClipboard = (text, field) => {
@@ -136,7 +148,7 @@ function App() {
             </button>
           )}
           <div className="current-path">
-            Current path: {currentPrefix || 'root'}
+            Current path: {currentPrefix || "root"}
           </div>
         </div>
       </header>
@@ -157,9 +169,13 @@ function App() {
                   <button
                     className="icon-button"
                     onClick={toggleSortOrder}
-                    title={`Sort by date ${sortOrder === 'desc' ? 'ascending' : 'descending'}`}
+                    title={`Sort by date ${sortOrder === "desc" ? "ascending" : "descending"}`}
                   >
-                    {sortOrder === 'desc' ? <FaSortAmountDown /> : <FaSortAmountUp />}
+                    {sortOrder === "desc" ? (
+                      <FaSortAmountDown />
+                    ) : (
+                      <FaSortAmountUp />
+                    )}
                   </button>
                 </div>
                 <div className="pagination-controls">
@@ -177,14 +193,18 @@ function App() {
                   </select>
                   <div className="pagination-buttons">
                     <button
-                      onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                      onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
                       disabled={currentPage === 1}
                     >
                       Previous
                     </button>
-                    <span>{currentPage} of {totalPages}</span>
+                    <span>
+                      {currentPage} of {totalPages}
+                    </span>
                     <button
-                      onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                      onClick={() =>
+                        setCurrentPage((p) => Math.min(totalPages, p + 1))
+                      }
                       disabled={currentPage === totalPages}
                     >
                       Next
@@ -222,14 +242,18 @@ function App() {
                     type="text"
                     value={selectedFile.name}
                     readOnly
-                    onClick={() => copyToClipboard(selectedFile.name, 'filename')}
+                    onClick={() =>
+                      copyToClipboard(selectedFile.name, "filename")
+                    }
                   />
                   <button
                     className="copy-button"
-                    onClick={() => copyToClipboard(selectedFile.name, 'filename')}
+                    onClick={() =>
+                      copyToClipboard(selectedFile.name, "filename")
+                    }
                     title="Copy filename"
                   >
-                    {copiedField === 'filename' ? <FaCheck /> : <FaCopy />}
+                    {copiedField === "filename" ? <FaCheck /> : <FaCopy />}
                   </button>
                 </div>
               </div>
@@ -240,14 +264,14 @@ function App() {
                     type="text"
                     value={selectedFile.url}
                     readOnly
-                    onClick={() => copyToClipboard(selectedFile.url, 'url')}
+                    onClick={() => copyToClipboard(selectedFile.url, "url")}
                   />
                   <button
                     className="copy-button"
-                    onClick={() => copyToClipboard(selectedFile.url, 'url')}
+                    onClick={() => copyToClipboard(selectedFile.url, "url")}
                     title="Copy URL"
                   >
-                    {copiedField === 'url' ? <FaCheck /> : <FaCopy />}
+                    {copiedField === "url" ? <FaCheck /> : <FaCopy />}
                   </button>
                 </div>
               </div>
@@ -260,3 +284,4 @@ function App() {
 }
 
 export default App;
+

@@ -2,6 +2,7 @@ import React, { useCallback, useState, useEffect } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
 import imageCompression from 'browser-image-compression';
+import { heicTo } from 'heic-to';
 import UploadProgress from './UploadProgress';
 
 const s3Client = new S3Client({
@@ -12,7 +13,30 @@ const s3Client = new S3Client({
   },
 });
 
+const convertHeicToJpeg = async (file) => {
+
+  console.log(file);
+  try {
+    const jpegBlob = await heicTo({
+      blob: file,
+      type: 'image/jpeg',
+      quality: 0.7,
+    });
+    // Create new file with jpeg extension
+    const newFilename = file.name.replace(/\.(heic|heif)$/i, '.jpg');
+    return new File([jpegBlob], newFilename, { type: 'image/jpeg' });
+  } catch (error) {
+    console.error('Error converting HEIC:', error);
+    return file;
+  }
+};
+
 const optimizeImage = async (file) => {
+  // First convert HEIC/HEIF if needed
+  if (/\.(heic|heif)$/i.test(file.name)) {
+    file = await convertHeicToJpeg(file);
+  }
+
   if (!file.type.startsWith('image/')) {
     return file; // Return non-image files as-is
   }
@@ -54,9 +78,9 @@ const uploadToS3 = async (file, currentPrefix, onProgress) => {
 
     const command = new PutObjectCommand({
       Bucket: import.meta.env.VITE_AWS_BUCKET_NAME,
-      Key: `${currentPrefix}${file.name}`,
+      Key: `${currentPrefix}${optimizedFile.name}`,
       Body: buffer,
-      ContentType: file.type,
+      ContentType: optimizedFile.type,
     });
 
     // Upload with progress tracking
@@ -170,7 +194,7 @@ function UploadZone({ currentPrefix, onUploadComplete }) {
   const { getRootProps, getInputProps } = useDropzone({
     onDrop: handleDrop,
     accept: {
-      'image/*': ['.jpeg', '.jpg', '.png', '.gif'],
+      'image/*': ['.jpeg', '.jpg', '.png', '.gif', '.heic', '.heif'],
     },
     noClick: true,
   });
