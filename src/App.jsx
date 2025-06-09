@@ -23,13 +23,13 @@ const s3Client = new S3Client({
 });
 
 function App() {
-  const [currentPrefix, setCurrentPrefix] = useState("");
+  const [currentPrefix, setCurrentPrefix] = useState("sb/weekly-notes/");
   const [objects, setObjects] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedFile, setSelectedFile] = useState(null);
   const [sortOrder, setSortOrder] = useState("desc");
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(20);
+  const [itemsPerPage, setItemsPerPage] = useState(50);
   const [copiedField, setCopiedField] = useState(null);
 
   const fetchObjects = async (prefix = "") => {

@@ -31,14 +31,82 @@ const convertHeicToJpeg = async (file) => {
   }
 };
 
+const promptDownload = async (file) => {
+  // Try File System Access API if available
+  if (window.showSaveFilePicker) {
+    try {
+      const opts = {
+        suggestedName: file.name,
+        types: [
+          {
+            description: file.type,
+            accept: { [file.type]: [`.${file.name.split('.').pop()}`] },
+          },
+        ],
+      };
+      const handle = await window.showSaveFilePicker(opts);
+      const writable = await handle.createWritable();
+      await writable.write(await file.arrayBuffer());
+      await writable.close();
+      return;
+    } catch (e) {
+      // If user cancels or error, fallback to download link
+    }
+  }
+  // Fallback: regular download link
+  const url = URL.createObjectURL(file);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = file.name;
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(() => {
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }, 100);
+};
+
+// Batch save support
+let globalDirectoryHandle = null;
+
+const promptBatchDirectory = async () => {
+  if (window.showDirectoryPicker) {
+    try {
+      globalDirectoryHandle = await window.showDirectoryPicker();
+    } catch (e) {
+      globalDirectoryHandle = null;
+    }
+  }
+};
+
+const saveFileToDirectory = async (file) => {
+  if (globalDirectoryHandle) {
+    try {
+      const handle = await globalDirectoryHandle.getFileHandle(file.name, { create: true });
+      const writable = await handle.createWritable();
+      await writable.write(await file.arrayBuffer());
+      await writable.close();
+      return true;
+    } catch (e) {
+      // If error, fallback to download
+    }
+  }
+  // fallback
+  await promptDownload(file);
+  return false;
+};
+
 const optimizeImage = async (file) => {
+  let wasConverted = false;
+  let originalName = file.name;
   // First convert HEIC/HEIF if needed
   if (/\.(heic|heif)$/i.test(file.name)) {
     file = await convertHeicToJpeg(file);
+    wasConverted = true;
   }
 
   if (!file.type.startsWith('image/')) {
-    return file; // Return non-image files as-is
+    return { file, wasConverted: false };
   }
 
   // Create a temporary image element to get dimensions
@@ -58,22 +126,33 @@ const optimizeImage = async (file) => {
 
   try {
     const optimizedFile = await imageCompression(file, options);
-    // Keep original filename
-    const renamedFile = new File([optimizedFile], file.name, {
-      type: optimizedFile.type,
-    });
-    return renamedFile;
+    // If the optimized file is different, prompt download
+    let renamedFile = file;
+    if (optimizedFile.size !== file.size || optimizedFile.name !== file.name) {
+      renamedFile = new File([optimizedFile], file.name, {
+        type: optimizedFile.type,
+      });
+      wasConverted = true;
+    }
+    return { file: renamedFile, wasConverted };
   } catch (error) {
     console.error('Error optimizing image:', error);
-    return file; // Return original file if optimization fails
+    return { file, wasConverted };
   } finally {
     URL.revokeObjectURL(img.src); // Clean up
   }
 };
 
-const uploadToS3 = async (file, currentPrefix, onProgress) => {
+const uploadToS3 = async (file, currentPrefix, onProgress, batchSave = false) => {
   try {
-    const optimizedFile = await optimizeImage(file);
+    const { file: optimizedFile, wasConverted } = await optimizeImage(file);
+    if (wasConverted) {
+      if (batchSave && globalDirectoryHandle) {
+        await saveFileToDirectory(optimizedFile);
+      } else {
+        await promptDownload(optimizedFile);
+      }
+    }
     const buffer = await optimizedFile.arrayBuffer();
 
     const command = new PutObjectCommand({
@@ -164,8 +243,13 @@ function UploadZone({ currentPrefix, onUploadComplete }) {
 
   const handleDrop = useCallback(async (acceptedFiles) => {
     setIsDragging(false);
-    // Initialize progress for each file
     setUploads(new Map(acceptedFiles.map(file => [file.name, 0])));
+
+    let batchSave = false;
+    if (window.showDirectoryPicker && acceptedFiles.length > 1) {
+      await promptBatchDirectory();
+      batchSave = !!globalDirectoryHandle;
+    }
 
     try {
       const uploadResults = await Promise.all(
@@ -173,7 +257,8 @@ function UploadZone({ currentPrefix, onUploadComplete }) {
           uploadToS3(
             file,
             currentPrefix,
-            (progress) => updateProgress(file, progress)
+            (progress) => updateProgress(file, progress),
+            batchSave
           )
         )
       );
@@ -229,4 +314,4 @@ function UploadZone({ currentPrefix, onUploadComplete }) {
   );
 }
 
-export default UploadZone; 
+export default UploadZone;
